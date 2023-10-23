@@ -5,13 +5,14 @@ using namespace std;
 #define MAX_TASK 10
 #define MAX_JOBS 100
 #define MAX_CRITICALITY 10
+#define SLEEP_TIME 1000
 
 int num_of_task;
 int hyperperiod;
 int job_index = 0;
 int preemptions = 0;
 int max_criticality = 0;
-int num_jobs;
+int num_of_jobs;
 
 double arrival_time[MAX_TASK], execution_time[MAX_TASK][MAX_CRITICALITY], deadline[MAX_TASK], virtualDeadlines[MAX_TASK];
 int criticality[MAX_TASK], period[MAX_TASK];
@@ -19,9 +20,11 @@ vector<int> cur_task_info(MAX_TASK, 0);
 
 typedef struct job JOB;
 vector<JOB> jobs;
+vector<JOB> current_jobs(MAX_TASK);
 vector<vector<double>> slackTable(MAX_JOBS, vector<double>(MAX_JOBS));
 priority_queue<JOB> discardedJobs;
-double total_idle_time = 0.0, total_stolen_time = 0.0;
+
+double total_idle_time = 0.0, total_stolen_time = 0.0, slackSystem = 0.0;
 
 
 template<typename T>
@@ -43,15 +46,16 @@ struct job{
 	double arrival_time;
 	int period;
 	double executed_time;
-	double deadline;
+	double deadline = -1;
     double original_deadline;
 	int task_id = -1;
 	int job_id = -1;
 	int job_index;
+    int deadline_index;
 	double remain_time;
 	double relative_deadline;
 	double cur_time;
-	double preempted_time;
+	double preempted_time = -1;
     int criticality;
 
 	bool operator<(const job& other) const {
@@ -203,59 +207,110 @@ double findX(int k){
     return lhs;
 }
 
-double computeCurrentSlack(priority_queue<JOB> pq){
-    double slackAvailable = INT_MAX;
-    while(!pq.empty()){
-        double cur_slack = 0.0;
-        JOB cur_job = pq.top();
-        pq.pop();
-        cur_slack = slackTable[cur_job.job_index][cur_job.job_index] - total_idle_time - total_stolen_time;
-        for(int i = 0; i < num_jobs; i++){
-            if(cur_job.deadline < jobs[i].deadline){
-                cur_slack -= jobs[i].executed_time;
-            }
+int findPartition(JOB job, vector<double> partitionDeadlines){
+    int partition = num_of_task-1;
+    for(int i = 0; i < num_of_task-1; i++){
+        if(job.deadline >= partitionDeadlines[i] && job.deadline < partitionDeadlines[i+1]){
+            partition = i;
+            break;
         }
-        slackAvailable = min(slackAvailable, cur_slack);
     }
-    total_stolen_time += slackAvailable;
-    return slackAvailable;
+    return partition;
+}
+double findSumExeCurrentJobs(int partition, vector<JOB> current_jobs){
+    double sum = 0.0;
+    for(int i = partition; i < num_of_task; i++){
+        sum += current_jobs[i].executed_time;
+    }
+    return sum;
+}
+double computeCurrentSlack(double cur_time, int current_level, int k, priority_queue<JOB> pq){
+    vector<JOB> cur_current_jobs(current_jobs.begin(), current_jobs.begin() + num_of_task);
+    vector<double> partitionDeadlines(num_of_task);
+    for(int i = 0; i < num_of_task; i++){
+        partitionDeadlines[i] = cur_current_jobs[i].deadline;
+    }
+    sort(cur_current_jobs.begin(), cur_current_jobs.end(), [](JOB a, JOB b) {
+        return a.deadline < b.deadline;
+    });
+    sort(partitionDeadlines.begin(), partitionDeadlines.end());
+
+    // printf("///////////////////////////////\n");
+    // for(int i = 0; i < num_of_task; i++){
+    //     printf("Current job of T%d(J%d): %lf\n", cur_current_jobs[i].task_id + 1, cur_current_jobs[i].job_id + 1, cur_current_jobs[i].deadline);
+    // }
+    // printf("///////////////////////////////\n");
+    // printf("*********************************\n");
+    // for(int i = 0; i < num_of_task; i++){
+    //     printf("Partition[%d] deadline: %lf\n", i, partitionDeadlines[i]);
+    // }
+    // printf("*********************************\n");
+        
+
+    vector<vector<JOB>> jobPartitions(num_of_task);
+    for(auto job:jobs){
+        if(current_level > k){
+            job.deadline = job.original_deadline;
+        }
+        if((job.deadline <= cur_time) or (job.criticality < current_level))
+            continue;
+        int partition = findPartition(job, partitionDeadlines);
+        jobPartitions[partition].push_back(job);
+    }
+
+    double cur_slackSystem = INT_MAX;
+    for(int i = 0; i < num_of_task; i++){
+        int size = jobPartitions[i].size();
+        if(size == 0)
+            continue;
+        printf("Partition[%d] size = %d\n", i, size);
+        double cur_slack = slackTable[jobPartitions[i][0].deadline_index][jobPartitions[i][size-1].deadline_index] - total_idle_time - total_stolen_time - findSumExeCurrentJobs(i+1, cur_current_jobs);
+        cur_slackSystem = min(cur_slackSystem, cur_slack);
+    }
+    if(cur_slackSystem == INT_MAX)
+        return slackSystem = -1.0;
+    return slackSystem = round(cur_slackSystem * 1e6) / 1e6;
 }
 
-void executeSlackJob(double& cur_time, double& prev_time, double& slackAvailable){
+void executeSlackJob(double& cur_time, double& prev_time){
     JOB cur_job = discardedJobs.top();
     discardedJobs.pop();
-    double decision_point = min({cur_time + slackAvailable, cur_time + cur_job.remain_time, findMinTask()});
-    slackAvailable -= decision_point - cur_time;
+
+    double decision_point = min({cur_time + slackSystem, cur_time + cur_job.remain_time, findMinTask()});
+
+    slackSystem -= decision_point - cur_time;
     cur_job.remain_time -= decision_point - cur_time;
     cur_job.executed_time += decision_point - cur_time;
     cur_job.executed_time = round(cur_job.executed_time * 1e6) / 1e6;
     total_stolen_time += decision_point - cur_time;
+
     if(cur_job.remain_time <= 0.0000001){
-        printf("Job %d of Task %d completed\n", cur_job.job_id + 1, cur_job.task_id + 1);
+        printf("%lf -> %lf => DiscardedJob T%d(J%d)*\n", cur_time, decision_point, cur_job.task_id + 1, cur_job.job_id + 1);
+        current_jobs[cur_job.task_id] = cur_job;
     }
     else{
-        printf("Job %d of Task %d preempted(%lf)\n", cur_job.job_id + 1, cur_job.task_id + 1, cur_job.remain_time);
+        printf("%lf -> %lf => DiscardedJob T%d(J%d)\n", cur_time, decision_point, cur_job.task_id + 1, cur_job.job_id + 1);
         cur_job.preempted_time = cur_time;
+        current_jobs[cur_job.task_id] = cur_job;
         discardedJobs.push(cur_job);
     }
     cur_time = decision_point;
     prev_time = cur_time;
+    usleep(SLEEP_TIME);
 }
 
-void slackTablePreCompute(vector<JOB> jobs){
-    num_jobs = jobs.size();
-    vector<double> initialSlack(num_jobs);
-    vector<vector<double>> slackTable(num_jobs, vector<double>(num_jobs));
-    for (int i = 0; i < num_jobs; i++) {
+void slackTablePreCompute(){
+    vector<double> initialSlack(num_of_jobs);
+    for (int i = 0; i < num_of_jobs; i++) {
         initialSlack[i] = jobs[i].deadline - 0; // Assuming time origin is 0
-        for (int j = 0; j < num_jobs; j++) {
+        for (int j = 0; j < num_of_jobs; j++) {
             if(jobs[j].deadline <= jobs[i].deadline)
-                initialSlack[i] -= jobs[j].deadline;
+                initialSlack[i] -= execution_time[jobs[j].task_id][criticality[jobs[j].task_id]-1];
         }
     }
-    for(int i = 0; i < num_jobs; i++){
+    for(int i = 0; i < num_of_jobs; i++){
         double miniSlack = INT_MAX;
-        for(int j = i; j < num_jobs; j++){
+        for(int j = i; j < num_of_jobs; j++){
             miniSlack = min(miniSlack, initialSlack[j]);
             slackTable[i][j] = miniSlack;
         }
@@ -269,13 +324,70 @@ void loadJobsInHyperperiod(int hyperperiod){
                 job.job_index = jobs.size();
                 job.arrival_time = time;
                 job.deadline = time + virtualDeadlines[i];  // virtualDeadlines
+                job.original_deadline = time + deadline[i];
                 job.remain_time = execution_time[i][1]; // at base criticality
+                job.criticality = criticality[i];
                 jobs.push_back(job);
             }
         }
-    }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+    }
+    sort(jobs.begin(), jobs.end(), [](JOB a, JOB b) {
+        return a.deadline < b.deadline;
+    });
+    for(int i = 0; i < jobs.size(); i++){
+        jobs[i].deadline_index = i;
+    }
 }
 
+void handleArrivals(double cur_time, int k, priority_queue<JOB>& pqLO, custom_priority_queue<JOB>& pqHI){
+    for (int j = 0; j < num_of_task; j++) {
+        if (fmod((cur_time - arrival_time[j]), period[j]) == 0) {
+            JOB t = loadJob(j, cur_time);
+            pqLO.push(t);
+            // printf("Job %d of Task %d arrived with criticality %d\n", t.job_id + 1, t.task_id + 1, t.criticality);
+            if(criticality[j] > k){
+                t.deadline = cur_time + deadline[j];
+                pqHI.push(t);
+            }
+            cur_task_info[j]++;
+        }
+    }
+}
+
+void pushIntoDiscardedJobs(priority_queue<JOB>& pqLO, int current_level){
+    priority_queue<JOB> tmp;
+    while(!pqLO.empty()){
+        JOB cur_job = pqLO.top();
+        pqLO.pop();
+        if(cur_job.criticality < current_level){
+            // printf("Job %d of Task %d discarded\n", cur_job.job_id + 1, cur_job.task_id + 1);
+            discardedJobs.push(cur_job);
+        }
+        else{
+            tmp.push(cur_job);
+        }
+    }
+    pqLO = tmp;
+}
+
+void doSlackWorks(double& cur_time, double& prev_time, int& k, int& current_level, priority_queue<JOB>& pqLO, custom_priority_queue<JOB>& pqHI, vector<int>& cur_task_info){
+    if(current_level <= k)
+        slackSystem = computeCurrentSlack(cur_time, current_level, k, pqLO);
+    else
+        slackSystem = computeCurrentSlack(cur_time, current_level, k, pqHI);
+    while(slackSystem > 0){
+        printf("Slack System(%lf): %lf\n", cur_time, slackSystem);
+        if(discardedJobs.empty())
+            break;
+        executeSlackJob(cur_time, prev_time);
+
+        handleArrivals(cur_time, k, pqLO, pqHI);
+        if(current_level <= k)
+            slackSystem = computeCurrentSlack(cur_time, current_level, k, pqLO);
+        else
+            slackSystem = computeCurrentSlack(cur_time, current_level, k, pqHI);
+    }
+}
 int offlinePreprocessing(){
     if(worstUtilization(max_criticality) <= 1){
         for(int i = 0; i < num_of_task; i++){
@@ -287,7 +399,8 @@ int offlinePreprocessing(){
         int k = findK();
         if(k == -1){
             cout << "No solution exists" << endl;
-            exit(0);
+            k = max_criticality;   ///////// CHANGE
+            // exit(0);
         }
         double x = findX(k);
         for(int i = 0; i < num_of_task; i++){
@@ -300,7 +413,6 @@ int offlinePreprocessing(){
     }
 }
 void runtimeScheduling(int k, int time){
-
     priority_queue<JOB> pqLO; // Min heap of pairs, where first is deadline and second is task id
     custom_priority_queue<JOB> pqHI; // Min heap of pairs, where first is deadline and second is task id
 
@@ -318,38 +430,23 @@ void runtimeScheduling(int k, int time){
 	bool arrival = false;
 
     while(cur_time < time){
-        while(!discardedJobs.empty()){
-            double slackAvailable;
-            if(current_level <= k)
-                slackAvailable = computeCurrentSlack(pqLO);
-            else
-                slackAvailable = computeCurrentSlack(pqHI);
-
-            if(slackAvailable <= 0.0000001)
-                break;
-
-            executeSlackJob(cur_time, prev_time, slackAvailable);
-
-            for (int j = 0; j < num_of_task; j++) {
-				if (fmod((cur_time - arrival_time[j]), period[j]) == 0) {
-					JOB t = loadJob(j, cur_time);
-					pqLO.push(t);
-                    if(criticality[j] > k){
-                        t.deadline = cur_time + deadline[j];
-                        pqHI.push(t);
-                    }
-					cur_task_info[j]++;
-				}
-			}
-        }
+        if(!arrival){
+			handleArrivals(cur_time, k, pqLO, pqHI);
+			arrival = true;
+		}
+        pushIntoDiscardedJobs(pqLO, current_level);  // correct this
+        
 		if(cur_job_index != -1){
             cur_job.remain_time -= cur_time - prev_time;
             cur_job.executed_time += cur_time - prev_time;
 
             cur_job.executed_time = round(cur_job.executed_time * 1e6) / 1e6;
+            current_jobs[cur_job.task_id] = cur_job;
+
             if(cur_job.executed_time >= execution_time[cur_job.task_id][current_level-1]){ // CHANGE >= to >
                 printf("\nCriticality Level changed from %d to %d\n\n", current_level, current_level+1);
                 current_level++;
+                pushIntoDiscardedJobs(pqLO, current_level);
             }
 
 
@@ -373,39 +470,23 @@ void runtimeScheduling(int k, int time){
                 cur_job_index = -1;
             }
         }
-		if(!arrival){
-			for (int j = 0; j < num_of_task; j++) {
-				if (fmod((cur_time - arrival_time[j]), period[j]) == 0) {
-					JOB t = loadJob(j, cur_time);
-					pqLO.push(t);
-                    if(criticality[j] > k){
-                        t.deadline = cur_time + deadline[j];
-                        pqHI.push(t);
-                    }
-					cur_task_info[j]++;
-				}
-			}
-			arrival = true;
-		}
+        doSlackWorks(cur_time, prev_time, k, current_level, pqLO, pqHI, cur_task_info);
+		
 		if((current_level <= k && !pqLO.empty()) or (current_level > k && !pqHI.empty())){
             int flag = 0;
             if(current_level <= k){
-                while(!pqLO.empty()){
+                if(!pqLO.empty()){
+                    flag++;
                     cur_job = pqLO.top();
                     pqLO.pop();
                     if(cur_job.criticality > k){
                         bool tmp = pqHI.remove(cur_job);
-                    }
-                    if(cur_job.criticality >= current_level){
-                        flag++;
-                        break;
                     }
                 }
             }
             else{
                 while(!pqHI.empty()){
                     cur_job = pqHI.top();
-                    discardedJobs.push(cur_job);
                     pqHI.pop();
                     if(cur_job.criticality >= current_level){
                         flag++;
@@ -438,7 +519,6 @@ void runtimeScheduling(int k, int time){
 
 			decision_point = min({cur_time + cur_job.remain_time, cur_time + execution_time[cur_job.task_id][current_level-1] -  cur_job.executed_time, findMinTask()});
 
-			// printf("%lf %lf %lf\n", cur_job.remain_time, execution_time[cur_job.task_id][current_level-1] -  cur_job.executed_time, findMinTask());
 
 			if(decision_point == cur_time + cur_job.remain_time){
 				printf("%lf -> %lf => T%d(J%d)*\n", cur_time, decision_point, cur_job.task_id + 1, cur_job.job_id + 1);
@@ -452,7 +532,7 @@ void runtimeScheduling(int k, int time){
             total_idle_time += decision_point - cur_time;
 			printf("%lf -> %lf => IDLE\n", cur_time, decision_point);
 		}
-        usleep(100000);
+        usleep(SLEEP_TIME);
 		prev_time = cur_time;
 		cur_time = decision_point;
 		arrival = false;
@@ -460,12 +540,27 @@ void runtimeScheduling(int k, int time){
     }
 }
 
+void printSlackTable(){
+    for(int i = 0; i < num_of_jobs; i++){
+        for(int j = 0; j < num_of_jobs; j++){
+            cout << slackTable[i][j] << " ";
+        }
+        cout << endl;
+    }
+}
+void printJobs(){
+    for(auto job: jobs){
+        cout << job.job_index << " " << job.deadline << endl;
+    }
+}
     
 void edfvd(int hyperperiod) {
-    loadJobsInHyperperiod(hyperperiod);
-    num_jobs = jobs.size();
-    slackTablePreCompute(jobs);
     int k = offlinePreprocessing();
+    cout << "K: " << k << endl;
+    loadJobsInHyperperiod(hyperperiod);
+    num_of_jobs = jobs.size();
+    slackTablePreCompute();
+    // printSlackTable();
     runtimeScheduling(k, hyperperiod);
 }
 
@@ -485,4 +580,11 @@ int main(int argc, char* argv[]){
 2
 0 4 4 1 2
 0 6 6 2 1 5
+*/
+
+/* 
+3
+0 10 10 1 4
+0 12 12 2 2 4
+0 15 15 3 1 3 4
 */
