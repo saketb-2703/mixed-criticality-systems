@@ -2,9 +2,7 @@
 using namespace std;
 
 int main(){
-    vector<int> str{1,2,3,4,5};
-    vector<int> str2(str.begin(), str.begin()+3);
-    for(auto i: str2){
-        cout << i << " ";
-    }
+    double a = 1.4;
+    double ans = min(1.0, a);
+    printf("%.2f\n", ans);
 }
