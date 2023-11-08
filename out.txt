@@ -1,0 +1,165 @@
+Hyperperiod: 60
+k: 1
+T3(J1) : Deadline = 6.000000
+T1(J1) : Deadline = 12.000000
+T2(J1) : Deadline = 12.000000
+T3(J2) : Deadline = 16.000000
+T1(J2) : Deadline = 24.000000
+T3(J3) : Deadline = 26.000000
+T2(J2) : Deadline = 32.000000
+T1(J3) : Deadline = 36.000000
+T3(J4) : Deadline = 36.000000
+T3(J5) : Deadline = 46.000000
+T1(J4) : Deadline = 48.000000
+T2(J3) : Deadline = 52.000000
+T3(J6) : Deadline = 56.000000
+T1(J5) : Deadline = 60.000000
+miniSlack[T3(J1)]: 0.000000
+miniSlack[T2(J1)]: 0.000000
+miniSlack[T1(J1)]: 0.000000
+miniSlack[T3(J2)]: 0.000000
+miniSlack[T1(J2)]: 0.000000
+miniSlack[T3(J3)]: 0.000000
+miniSlack[T2(J2)]: 0.000000
+miniSlack[T1(J3)]: 0.000000
+miniSlack[T3(J4)]: 0.000000
+miniSlack[T3(J5)]: 0.000000
+miniSlack[T1(J4)]: 0.000000
+miniSlack[T2(J3)]: 0.000000
+miniSlack[T3(J6)]: 0.000000
+miniSlack[T1(J5)]: 0.000000
+0.000000 -> 3.000000 => T3(J1)
+
+Criticality Level changed from 1 to 2
+
+
+slack: 3.882353
+3.000000 -> 3.522641 => T3(J1)*
+T3(J1) completed early
+
+slack: 3.942059
+3.522641 -> 4.839658 => T2(J1)*
+T2(J1) completed early
+
+slack: 4.893149
+
+T1(J1) with remain time:4.000000 undiscarded due to slack of 4.893149
+
+4.839658 -> 8.622280 => Discarded T1(J1)*
+miniSlack[T3(J2)]: 6.377720
+miniSlack[T3(J3)]: 6.377720
+miniSlack[T2(J2)]: 6.377720
+miniSlack[T3(J4)]: 6.377720
+miniSlack[T3(J5)]: 6.377720
+miniSlack[T2(J3)]: 6.377720
+miniSlack[T3(J6)]: 6.377720
+8.622280 -> 10.000000 => PROCRAST IDLE
+miniSlack[T3(J2)]: 1.000000
+miniSlack[T3(J3)]: 1.000000
+miniSlack[T2(J2)]: 1.000000
+miniSlack[T3(J4)]: 1.000000
+miniSlack[T3(J5)]: 1.000000
+miniSlack[T2(J3)]: 1.000000
+miniSlack[T3(J6)]: 1.000000
+10.000000 -> 11.000000 => PROCRAST IDLE
+miniSlack[T3(J2)]: 0.000000
+miniSlack[T3(J3)]: 0.000000
+miniSlack[T2(J2)]: 0.000000
+miniSlack[T3(J4)]: 0.000000
+miniSlack[T3(J5)]: 0.000000
+miniSlack[T2(J3)]: 0.000000
+miniSlack[T3(J6)]: 0.000000
+11.000000 -> 12.000000 => T3(J2)
+
+slack: 4.200000
+
+T1(J2) with remain time:4.000000 undiscarded due to slack of 4.200000
+
+12.000000 -> 12.793312 => T3(J2)*
+T3(J2) completed early
+12.793312 -> 14.255589 => Discarded T1(J2)*
+miniSlack[T3(J3)]: 8.298146
+miniSlack[T2(J2)]: 8.298146
+miniSlack[T3(J4)]: 8.298146
+miniSlack[T3(J5)]: 8.298146
+miniSlack[T2(J3)]: 8.298146
+miniSlack[T3(J6)]: 8.298146
+14.255589 -> 20.000000 => PROCRAST IDLE
+miniSlack[T3(J3)]: -1.000000
+miniSlack[T2(J2)]: -1.000000
+miniSlack[T3(J4)]: -1.000000
+miniSlack[T3(J5)]: -1.000000
+miniSlack[T2(J3)]: -1.000000
+miniSlack[T3(J6)]: -1.000000
+20.000000 -> 24.000000 => T3(J3)
+
+slack: 0.000000
+24.000000 -> 24.770065 => T3(J3)*
+24.770065 -> 24.964336 => T2(J2)*
+T2(J2) completed early
+
+slack: 5.242389
+
+T1(J3) with remain time:4.000000 undiscarded due to slack of 5.242389
+
+24.964336 -> 25.809212 => Discarded T1(J3)*
+miniSlack[T3(J4)]: 9.190788
+miniSlack[T3(J5)]: 9.190788
+miniSlack[T2(J3)]: 9.190788
+miniSlack[T3(J6)]: 9.190788
+25.809212 -> 30.000000 => PROCRAST IDLE
+miniSlack[T3(J4)]: 1.000000
+miniSlack[T3(J5)]: 1.000000
+miniSlack[T2(J3)]: 1.000000
+miniSlack[T3(J6)]: 1.000000
+30.000000 -> 31.000000 => PROCRAST IDLE
+miniSlack[T3(J4)]: 0.000000
+miniSlack[T3(J5)]: 0.000000
+miniSlack[T2(J3)]: 0.000000
+miniSlack[T3(J6)]: 0.000000
+31.000000 -> 36.000000 => T3(J4)
+
+slack: 1.400000
+
+Criticality Level changed from 2 to 3
+
+
+slack: 6.200000
+
+T1(J4) with remain time:4.000000 undiscarded due to slack of 6.200000
+
+36.000000 -> 36.511273 => T3(J4)*
+36.511273 -> 37.341383 => Discarded T1(J4)*
+miniSlack[T3(J5)]: 6.658617
+miniSlack[T3(J6)]: 6.658617
+37.341383 -> 40.000000 => PROCRAST IDLE
+
+slack: 2.830110
+miniSlack[T3(J5)]: 0.000000
+miniSlack[T3(J6)]: 0.000000
+40.000000 -> 42.694300 => T3(J5)*
+T3(J5) completed early
+
+slack: 8.000000
+
+T2(J3) with remain time:4.000000 undiscarded due to slack of 8.000000
+
+42.694300 -> 43.784646 => Discarded T2(J3)*
+miniSlack[T3(J6)]: 10.215354
+43.784646 -> 48.000000 => PROCRAST IDLE
+
+slack: 7.090346
+
+T1(J5) with remain time:4.000000 undiscarded due to slack of 7.090346
+
+miniSlack[T1(J5)]: 2.000000
+miniSlack[T3(J6)]: 2.000000
+48.000000 -> 50.000000 => PROCRAST IDLE
+miniSlack[T3(J6)]: -2.400000
+miniSlack[T1(J5)]: -2.400000
+50.000000 -> 54.871261 => T3(J6)*
+54.871261 -> 54.942812 => Discarded T1(J5)*
+54.942812 -> 60.000000 => PROCRAST IDLE
+Preemptions: 0
+Discarded Jobs: 0
+Current Discarded Queue Size: 0

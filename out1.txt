@@ -1,0 +1,120 @@
+Hyperperiod: 60
+k: 1
+0.000000 -> 3.000000 => T3(J1)
+
+Criticality Level changed from 1 to 2
+
+Job 1 of Task 3 preempted(2.368170)
+
+disc_job.deadline: 12.000000
+
+slack: 3.882353
+3.000000 -> 5.000000 => T3(J1)
+
+Criticality Level changed from 2 to 3
+
+Job 1 of Task 3 preempted(0.368170)
+
+disc_job.deadline: 12.000000
+
+slack: 4.800000
+
+T1(J1) with remain time:4.000000 undiscarded due to slack of 4.800000
+
+
+disc_job.deadline: 20.000000
+
+slack: 9.000000
+
+T2(J1) with remain time:4.000000 undiscarded due to slack of 9.000000
+
+5.000000 -> 5.368170 => T3(J1)*
+5.368170 -> 8.157912 => Discarded T1(J1)*
+8.157912 -> 9.208066 => Discarded T2(J1)*
+9.208066 -> 10.000000 => PROCRAST IDLE
+10.000000 -> 12.000000 => PROCRAST IDLE
+
+disc_job.deadline: 24.000000
+
+slack: 3.600000
+12.000000 -> 14.000000 => PROCRAST IDLE
+14.000000 -> 18.753789 => T3(J2)*
+T3(J2) completed early
+
+disc_job.deadline: 24.000000
+
+slack: 2.846211
+18.753789 -> 20.000000 => PROCRAST IDLE
+
+disc_job.deadline: 24.000000
+
+slack: 0.000000
+
+disc_job.deadline: 40.000000
+
+slack: 14.000000
+
+T2(J2) with remain time:4.000000 undiscarded due to slack of 14.000000
+
+20.000000 -> 22.000000 => PROCRAST IDLE
+22.000000 -> 24.000000 => T3(J3)
+
+disc_job.deadline: 36.000000
+
+slack: 1.400000
+24.000000 -> 24.771010 => T3(J3)*
+T3(J3) completed early
+
+disc_job.deadline: 36.000000
+
+slack: 4.679618
+
+T1(J3) with remain time:4.000000 undiscarded due to slack of 4.679618
+
+24.771010 -> 26.021266 => Discarded T1(J3)*
+26.021266 -> 27.856061 => Discarded T2(J2)*
+27.856061 -> 30.000000 => PROCRAST IDLE
+30.000000 -> 34.000000 => PROCRAST IDLE
+34.000000 -> 36.000000 => T3(J4)
+
+disc_job.deadline: 48.000000
+
+slack: 3.200000
+36.000000 -> 37.741636 => T3(J4)*
+T3(J4) completed early
+
+disc_job.deadline: 48.000000
+
+slack: 5.458364
+
+T1(J4) with remain time:4.000000 undiscarded due to slack of 5.458364
+
+37.741636 -> 38.259410 => Discarded T1(J4)*
+38.259410 -> 40.000000 => PROCRAST IDLE
+
+disc_job.deadline: 60.000000
+
+slack: 8.000000
+
+T2(J3) with remain time:4.000000 undiscarded due to slack of 8.000000
+
+40.000000 -> 42.000000 => PROCRAST IDLE
+42.000000 -> 44.129296 => T3(J5)*
+T3(J5) completed early
+44.129296 -> 45.637572 => Discarded T2(J3)*
+45.637572 -> 48.000000 => PROCRAST IDLE
+
+disc_job.deadline: 60.000000
+
+slack: 6.000000
+
+T1(J5) with remain time:4.000000 undiscarded due to slack of 6.000000
+
+48.000000 -> 50.000000 => PROCRAST IDLE
+50.000000 -> 52.829853 => T3(J6)*
+T3(J6) completed early
+52.829853 -> 55.134453 => Discarded T1(J5)*
+55.134453 -> 60.000000 => PROCRAST IDLE
+Preemptions: 0
+Discarded Jobs: 1
+Current Discarded Queue Size: 0

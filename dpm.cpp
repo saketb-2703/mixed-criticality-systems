@@ -5,8 +5,9 @@ using namespace std;
 #define MAX_TASK 10
 #define MAX_JOBS 100
 #define MAX_CRITICALITY 10
-#define SLEEP_TIME 100
+#define SLEEP_TIME 10000
 #define COMPLETION_LB 0.8
+#define PROCRAST_THRESHOLD 0.5
 
 int num_of_task;
 int num_of_jobs;
@@ -236,7 +237,12 @@ void transferRq(priority_queue<JOB>& pqLO){
         cur_job.deadline = cur_job.original_deadline;
         tmp.push(cur_job);
     }
-    pqLO = tmp;
+    while(!tmp.empty()){
+        JOB cur_job = tmp.top();
+        tmp.pop();
+        pqLO.push(cur_job);
+    }
+    // pqLO = tmp;
 }
 
 void loadJobsInHyperperiod(int hyperperiod){
@@ -290,7 +296,7 @@ void slackTablePreCompute(){
     }
 }
 
-int handleArrivals(double cur_time, int k, priority_queue<JOB>& pqLO, custom_priority_queue<JOB>& pqHI){
+int handleArrivals(double cur_time, int k, priority_queue<JOB>& pqLO){
     int discardedCount = 0;
     for (int j = 0; j < num_of_task; j++) {
         if (fmod((cur_time - arrival_time[j]), period[j]) == 0) {
@@ -394,6 +400,47 @@ int handleArrivals(double cur_time, int k, priority_queue<JOB>& pqLO, custom_pri
 //     discardedJobs = tmp;
 // }
 
+double dpm(double cur_time, priority_queue<JOB> rq, int k){
+    double miniSlack = INT_MAX;
+    priority_queue<JOB> rqCopy = rq;
+    vector<JOB> rqJobs;
+    while(!rqCopy.empty()){
+        JOB job = rqCopy.top();
+        rqCopy.pop();
+        rqJobs.push_back(job);
+    }
+    for(auto job:jobs){
+        if(job.arrival_time <= cur_time or job.criticality < current_level)
+            continue;
+        if(current_level > k){
+            job.deadline = job.original_deadline; // resetting deadline to original deadline
+        }
+        rqJobs.push_back(job);
+    }
+    for(int i = 0; i < rqJobs.size(); i++){ // QOS for already undiscarded jobs but not for those which will be discarded later and might have been undiscarded due to slack
+        JOB job = rqJobs[i];
+        if(current_level > k){ // DEBUG
+            job.deadline = job.original_deadline; // resetting deadline to original deadline
+        }
+        double slack = job.deadline - cur_time;
+        for(int j = 0; j < rqJobs.size(); j++){
+            JOB other_job = rqJobs[j]; // we need to consider execution time of current job also since we are finding slack of system due to this job and later checking if slack > 0
+            if(other_job.arrival_time >= job.deadline)
+                continue;
+            if(current_level > k){ // DEBUG
+                other_job.deadline = other_job.original_deadline; // resetting deadline to original deadline
+            }
+            double exeFrac = min(1.0, (job.deadline - cur_time)/(other_job.deadline - cur_time)); // there would be some undiscarded job also in readyQueue
+            slack -= exeFrac * (execution_time[other_job.task_id][min(current_level, other_job.criticality)-1] - other_job.executed_time);
+            // printf("T%d(J%d):%lf, ", other_job.task_id+1, other_job.job_id+1, slack);
+        }
+        // 10 - 6 - 4
+        miniSlack = min(miniSlack, slack);
+        miniSlack = round(miniSlack * 1e6) / 1e6;
+        // printf("miniSlack[T%d(J%d)]: %lf\n", job.task_id+1, job.job_id+1, miniSlack);
+    }
+    return miniSlack;
+}
 void computeCurrentSlack2(double cur_time, int k, priority_queue<JOB>& rq, JOB cur_job, double extra_time){
     priority_queue<JOB> tmp;  // to store slackless-discarded jobs
     priority_queue<JOB> rqCopy = rq;
@@ -409,32 +456,32 @@ void computeCurrentSlack2(double cur_time, int k, priority_queue<JOB>& rq, JOB c
             disc_job.deadline = disc_job.original_deadline; // reseting deadline to original deadline
         }
         double slack = disc_job.deadline - cur_time;
-        // printf("\ndisc_job.deadline: %lf\n", disc_job.deadline);
+        printf("\ndisc_job.deadline: %lf\n", disc_job.deadline);
 
 
         if(current_level > k){
             cur_job.deadline = cur_job.original_deadline; // resetting deadline to original deadline
         }
-        double exeFrac = min(1.0, (disc_job.deadline - cur_time)/(cur_job.deadline - cur_time));
-        slack -= exeFrac * (execution_time[cur_job.task_id][current_level-1] - cur_job.executed_time);
-        // printf("T%d(J%d):%lf, ", cur_job.task_id+1, cur_job.job_id+1, exeFrac);
+        // double exeFrac = min(1.0, (disc_job.deadline - cur_time)/(cur_job.deadline - cur_time));
+        // slack -= exeFrac * (execution_time[cur_job.task_id][min(current_level, cur_job.criticality)-1] - cur_job.executed_time);
+        // printf("%T%d(J%d):%lf, ", cur_job.task_id+1, cur_job.job_id+1, cur_job.deadline);
 
         while(!rqCopy.empty()){
             JOB job = rqCopy.top();
             rqCopy.pop();
             double exeFrac = min(1.0, (disc_job.deadline - cur_time)/(job.deadline - cur_time)); // there would be some undiscarded job also in readyQueue
-            slack -= exeFrac * (execution_time[job.task_id][current_level-1] - job.executed_time);
-            // printf("T%d(J%d):%lf, ", job.task_id+1, job.job_id+1, exeFrac);
+            slack -= exeFrac * (execution_time[job.task_id][min(current_level, job.criticality)-1] - job.executed_time);
+            // printf("^T%d(J%d):%lf, ", job.task_id+1, job.job_id+1, job.deadline);
         }
         for(auto job:jobs){
-            if(job.arrival_time < cur_time or job.arrival_time >= disc_job.deadline or job.criticality < current_level)
+            if(job.arrival_time <= cur_time or job.arrival_time >= disc_job.deadline or job.criticality < current_level)
                 continue;
             if(current_level > k){
                 job.deadline = job.original_deadline; // resetting deadline to original deadline
             }
             double exeFrac = min(1.0, (disc_job.deadline - job.arrival_time)/(job.deadline - job.arrival_time));
             slack -= exeFrac * execution_time[job.task_id][current_level-1];
-            // printf("T%d(J%d):%lf, ", job.task_id+1, job.job_id+1, exeFrac);
+            // printf("T%d(J%d):%lf, ", job.task_id+1, job.job_id+1, job.deadline);
 
         }
         printf("\nslack: %lf\n", slack);
@@ -499,7 +546,6 @@ int offlinePreprocessing(){
 }
 void runtimeScheduling(int k, int time){
     priority_queue<JOB> pqLO; // Min heap of pairs, where first is deadline and second is task id
-    custom_priority_queue<JOB> pqHI; // Min heap of pairs, where first is deadline and second is task id
 
 	JOB cur_job;
 	double cur_time = 0.0, prev_time = 0.0, extra_time = 0.0;
@@ -514,30 +560,14 @@ void runtimeScheduling(int k, int time){
 	bool arrival = false;
 
     while(cur_time < time){
-        if(!arrival){ 
-			int discardedCount = handleArrivals(cur_time, k, pqLO, pqHI);
-            if(discardedCount > 0)
-                doSlackWorks(cur_time, k, pqLO, cur_job, extra_time);
-			arrival = true;  
-		}
-        
-		if(cur_job_index != -1){
+        bool idle = cur_job_index == -1;
+        if(cur_job_index != -1){
             cur_job.remain_time -= cur_time - prev_time;
             cur_job.executed_time += cur_time - prev_time;
 
             cur_job.remain_time = round(cur_job.remain_time * 1e6) / 1e6;
             cur_job.executed_time = round(cur_job.executed_time * 1e6) / 1e6;
             current_jobs[cur_job.task_id] = cur_job;
-
-            if(!cur_job.discarded && (cur_job.executed_time >= execution_time[cur_job.task_id][current_level-1])){ // CHANGE >= to >
-                printf("\nCriticality Level changed from %d to %d\n\n", current_level, current_level+1);
-                current_level++;
-                if(current_level > k){
-                    transferRq(pqLO);
-                }
-                pushRqIntoDiscardedJobs(pqLO);
-                doSlackWorks(cur_time, k, pqLO, cur_job, extra_time);
-            }
 
 
             if(abs(cur_job.remain_time) <= 0){  // remove completed job from CPU
@@ -549,10 +579,38 @@ void runtimeScheduling(int k, int time){
                         doSlackWorks(cur_time, k, pqLO, cur_job, extra_time);
                     }
                 }
+                if(pqLO.empty()){
+                    double procrast_slack = dpm(cur_time, pqLO, k);
+                    if(procrast_slack > PROCRAST_THRESHOLD){
+                        decision_point = min(cur_time + procrast_slack, findMinTask());
+                        total_idle_time += decision_point - cur_time;
+                        printf("%lf -> %lf => PROCRAST IDLE\n", cur_time, decision_point);
+                        usleep(SLEEP_TIME);
+                        prev_time = cur_time;
+                        cur_time = decision_point;
+                        arrival = false;
+                        cur_job_index = -1; 
+				        prev_job_index = -1;
+                        continue;
+                    }
+                }
                 cur_job_index = -1; 
 				prev_job_index = -1;
 			}
 
+            if(!cur_job.discarded && (cur_job.executed_time >= execution_time[cur_job.task_id][current_level-1])){ // CHANGE >= to >
+                printf("\nCriticality Level changed from %d to %d\n\n", current_level, current_level+1);
+                current_level++;
+                printf("Job %d of Task %d preempted(%lf)\n", cur_job.job_id + 1, cur_job.task_id + 1, cur_job.remain_time);
+                cur_job.preempted_time = cur_time;  // current_level changing is also a preemption point right now
+                pqLO.push(cur_job);
+                cur_job_index = -1;
+                pushRqIntoDiscardedJobs(pqLO);
+                if(current_level > k){
+                    transferRq(pqLO);
+                }
+                doSlackWorks(cur_time, k, pqLO, cur_job, extra_time);
+            }
             
             if(cur_job_index != -1){
                 // printf("Job %d of Task %d preempted(%lf)\n", cur_job.job_id + 1, cur_job.task_id + 1, cur_job.remain_time);
@@ -561,6 +619,28 @@ void runtimeScheduling(int k, int time){
                 cur_job_index = -1;
             }
         }
+        if(!arrival){ 
+			int discardedCount = handleArrivals(cur_time, k, pqLO);
+            if(discardedCount > 0)
+                doSlackWorks(cur_time, k, pqLO, cur_job, extra_time);
+            if(idle){
+                double procrast_slack = dpm(cur_time, pqLO, k);
+                if(procrast_slack > PROCRAST_THRESHOLD){
+                    decision_point = min(cur_time + procrast_slack, findMinTask());
+                    total_idle_time += decision_point - cur_time;
+                    printf("%lf -> %lf => PROCRAST IDLE\n", cur_time, decision_point);
+                    usleep(SLEEP_TIME);
+                    prev_time = cur_time;
+                    cur_time = decision_point;
+                    arrival = false;
+                    continue;
+                }
+
+            }
+			arrival = true;  
+		}
+        
+		
 		
 		if(!pqLO.empty()){
             cur_job = pqLO.top();
@@ -637,7 +717,7 @@ void printSlackTable() {
 
 void printJobs() {
     for (auto job:jobs) {
-        printf("T%d [Jidx%d] : Deadline = %lf\n", job.task_id+1, job.job_index, job.deadline);
+        printf("T%d(J%d) : Deadline = %lf\n", job.task_id+1, job.job_id+1, job.deadline);
     }
 }
   
@@ -686,3 +766,5 @@ BEST
 0 20 20 2 2 4
 0 10 10 3 3 5 6
 */
+
+// What if a discarded job has slack of 5 at time t = 10 and current_critical_level, executes the remaining execution time and exits but then the HI criticality job changes criticality. Won't the previously calculated slack for discarded job based on lower critical level wcet of HI criticality job be wrong and create negative slack now? Or is edf-vd taking care of it?
