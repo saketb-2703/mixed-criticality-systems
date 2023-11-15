@@ -13,19 +13,19 @@ struct job{
 	double arrival_time;
 	int period;
 	double executed_time;
-    double executed_time_hfq;
+        double executed_time_hfq;
 	double deadline = -1;
-    double original_deadline;
+        double original_deadline;
 	int task_id = -1;
 	int job_id = -1;
 	int job_index;
-    int deadline_index;
+        int deadline_index;
 	double remain_time;
 	double relative_deadline;
 	double cur_time;
 	double preempted_time = -1;
-    int criticality;
-    bool discarded = false;
+        int criticality;
+        bool discarded = false;
 
 	bool operator<(const job& other) const {
 		if(deadline == other.deadline) 
