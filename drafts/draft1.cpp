@@ -36,6 +36,7 @@ struct job{
 int global_num_of_task;
 double global_arrival_time[MAX_TASK], global_execution_time[MAX_TASK][MAX_CRITICALITY], global_deadline[MAX_TASK], global_virtualDeadlines[MAX_TASK], global_slackTable[MAX_CRITICALITY][MAX_JOBS][MAX_JOBS];
 int global_criticality[MAX_TASK], global_period[MAX_TASK];
+
 class ShutDownableCore
 {
     public:
@@ -461,6 +462,8 @@ class ShutDownableCore
             }
         }
 
+        
+
         void runtimeScheduling(int k, int time){
             priority_queue<JOB> pqLO; // Min heap of pairs, where first is deadline and second is task id
 
@@ -502,6 +505,7 @@ class ShutDownableCore
                             }
                         }
                         if(pqLO.empty()){
+                            migrateJobs();
                             double procrast_slack = dpm(cur_time, pqLO, k);
                             if(procrast_slack > PROCRAST_THRESHOLD){
                                 decision_point = min(cur_time + procrast_slack, findMinTask());
@@ -586,9 +590,6 @@ class ShutDownableCore
                         printf("[Core %d] Preemption at t = %lf\n", coreNumber, cur_time);
                     }
                     prev_job_index = cur_job_index;
-
-
-
 
 
                     utilTask[cur_job.task_id] = (1.0*execution_time[cur_job.task_id][criticality[cur_job.task_id]-1])/cur_job.deadline;

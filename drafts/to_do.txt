@@ -1,0 +1,10 @@
+DONE
+1. Removed dpm from non-shutdownable core
+TODO
+1. Make k, current_level, cur_jobs as global. Update them wherever corresponding local variables are updated
+2. Implement inheritance of core class
+3. During migration, check for LO criticality also
+4. Decision point synchronization
+5. After migrating, 2 different jobs can have same indices in one core
+6. Implement accepting jobs from other cores(using global migrated jobs list)
+7. Implement calculateFrequencyOtherCore
