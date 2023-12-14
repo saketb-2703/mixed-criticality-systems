@@ -10,22 +10,22 @@ using namespace std;
 #define COMPLETION_LB 0.8
 #define PROCRAST_THRESHOLD 0.5
 struct job{
-	double arrival_time;
-	int period;
-	double executed_time;
-    double executed_time_hfq;
-	double deadline = -1;
-    double original_deadline;
-	int task_id = -1;
-	int job_id = -1;
-	int job_index;
-    int deadline_index;
-	double remain_time;
-	double relative_deadline;
-	double cur_time;
-	double preempted_time = -1;
-    int criticality;
-    bool discarded = false;
+	double arrival_time;      // clock time at which this job was admitted in the system
+	int period;              // Period instantiated from the task set
+	double executed_time;   // So far executed time
+    double executed_time_hfq; // So far executed time if job had been executed at highest frequency throughout
+	double deadline = -1;     // Absolute deadline of the job(will be virtual absolute deadline if current criticality <= k)
+    double original_deadline; // Absolute deadline of the job(ignoring EDF-VD virtual deadline)
+	int task_id = -1;         // task_id of job from task set
+	int job_id = -1;          // job_index of job considering this task only
+	int job_index;            // job_index of job considering all jobs arrived so far of all tasks
+    int deadline_index;       // job_index of job when all the jobs are sorted by their absolute deadlines
+	double remain_time;       // remaining actual execution time of this job; instantiated at runtime when the job is admitted in the system
+	double relative_deadline; // relative deadline of the job as per task set
+	double cur_time;          // clock time at which this job was admitted in the system   // same as arrival time..so ignore
+	double preempted_time = -1; // clock time at which this job was preempted from the core
+    int criticality;           // criticality level of this job(i.e. task)
+    bool discarded = false;    // indicated whether this job was part of discarded queue and hence later admitted into the ready queue 
 
 	bool operator<(const job& other) const {
 		if(deadline == other.deadline) 
@@ -57,7 +57,7 @@ vector<vector<JOB>> migratedJobs(NO_CORES);
 vector<JOB> cur_jobs(NO_CORES); // stores current executing job of each core
 vector<int> currrent_level(NO_CORES, 1);
 
-class ShutDownableCore
+class NonShutDownableCore
 {
     public:
         int coreNumber;
