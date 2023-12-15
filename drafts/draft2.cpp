@@ -34,6 +34,7 @@ struct job{
     }
 };
 
+template<typename T>
 class custom_priority_queue : public priority_queue<T, vector<T>>{
     public:
         bool remove(const T& job) {
@@ -53,7 +54,7 @@ vector<custom_priority_queue<JOB>> rq(NO_CORES);
 double global_arrival_time[MAX_TASK], global_execution_time[MAX_TASK][MAX_CRITICALITY], global_deadline[MAX_TASK], global_virtualDeadlines[MAX_TASK], global_slackTable[MAX_CRITICALITY][MAX_JOBS][MAX_JOBS];
 int global_criticality[MAX_TASK], global_period[MAX_TASK];
 vector<bool> shutdownAble(NO_CORES);
-vector<vector<JOB>> migratedJobs(NO_CORES);
+vector<vector<JOB> > migratedJobs(NO_CORES);
 vector<JOB> cur_jobs(NO_CORES); // stores current executing job of each core
 vector<int> currrent_level(NO_CORES, 1);
 
